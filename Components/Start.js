@@ -59,7 +59,7 @@ export default function Start(props) {
             title="Start Chat"
             style={styles.button}
             onPress={() =>
-              this.props.navigation.navigate('Chat', {
+              props.navigation.navigate('Chat', {
                 name: this.setState({ name }),
                 color: this.setState({ color }),
               })
