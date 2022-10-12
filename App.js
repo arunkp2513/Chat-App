@@ -5,7 +5,7 @@ import Chat from './Components/Chat';
 import 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-
+import React from 'react';
 // Create the navigator
 const Stack = createStackNavigator();
 
