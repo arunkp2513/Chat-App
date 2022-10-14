@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bubble, GiftedChat } from 'react-native-gifted-chat';
 import { StyleSheet, View, Platform, KeyboardAvoidingView } from 'react-native';
+import { initializeApp } from 'firebase/app';
 
 const firebase = require('firebase');
 require('firebase/firestore');
@@ -66,7 +67,7 @@ export default class Chat extends React.Component {
         firebase.auth().signInAnonymously();
       }
       this.setState({
-        uid: user.id,
+        uid: user._id,
         messages: [],
       });
       this.unsubscribe = this.referenceChatMesaages
@@ -110,7 +111,6 @@ export default class Chat extends React.Component {
     );
   }
   componentWillUnmount() {
-    this.unsubscribe();
     this.authUnsubscribe();
   }
 
