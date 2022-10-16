@@ -32,8 +32,6 @@ export default class Chat extends React.Component {
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
-    // Reference to Firestore collection
-    this.referenceChatMessages = firebase.firestore().collection('messages');
   }
 
   onCollectionUpdate = querySnapshot => {
@@ -59,26 +57,33 @@ export default class Chat extends React.Component {
     // Set window title
     this.props.navigation.setOptions({ title: name });
 
-    // Reference to load messages from Firebase
-    this.referenceChatMessages = firebase.firestore().collection('messages');
-
-    this.authUnsubscribe = firebase.auth().onAuthStateChanged(user => {
+    this.authUnsubscribe = firebase.auth().onAuthStateChanged(async user => {
       if (!user) {
-        firebase.auth().signInAnonymously();
+        return await firebase.auth().signInAnonymously();
       }
+
       this.setState({
-        uid: user._id,
         messages: [],
+        user: {
+          _id: user.uid,
+          name: name,
+          avatar: 'https://placeimg.com/140/140/any',
+        },
       });
-      this.unsubscribe = this.referenceChatMesaages
+
+      // Reference to load messages from Firebase
+      this.referenceChatMessages = firebase.firestore().collection('messages');
+
+      this.unsubscribe = this.referenceChatMessages
         .orderBy('createdAt', 'desc')
-        .onSanpshot(this.onCollectionUpdate);
+        .onSnapshot(this.onCollectionUpdate);
     });
   }
   // Add message to Firestore
-  addMessages = message => {
+  addMessages = () => {
+    const message = this.state.messages[0];
+
     this.referenceChatMessages.add({
-      uid: this.state.uid,
       _id: message._id,
       text: message.text || '',
       createdAt: message.createdAt,
@@ -93,7 +98,7 @@ export default class Chat extends React.Component {
         messages: GiftedChat.append(previousState.messages, messages),
       }),
       () => {
-        this.addMessages(this.state.messages);
+        this.addMessages();
       }
     );
   }
