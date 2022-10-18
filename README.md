@@ -23,6 +23,7 @@ To set authentication, go to Project Settings and click Register to recieve the 
 This code is required for your app in order to use the firebase as your data storage.
 
 Dependencies
+
 HTML
 JavaScript
 Expo
