@@ -183,7 +183,10 @@ export default class Chat extends React.Component {
   }
 
   componentWillUnmount() {
-    this.authUnsubscribe();
+    if (this.state.isConnected == false) {
+    } else {
+      this.authUnsubscribe();
+    }
   }
 
   render() {
