@@ -1,19 +1,72 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import * as Permissions from 'expo-permissions';
-import * as Location from 'expo-location';
-import * as ImagePicker from 'expo-image-picker';
 import PropTypes from 'prop-types';
+import React from 'react';
 import { connectActionSheet } from '@expo/react-native-action-sheet';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import firebase from 'firebase';
+import 'firebase/firestore';
 
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
-class CustomAction extends React.Component {
-  state = {
-    image: null,
-    location: null,
+export default class CustomActions extends React.Component {
+  //Allow user to pick images from native library
+  imagePicker = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    try {
+      if (status === 'granted') {
+        let result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        }).catch(error => console.log(error));
+        if (!result.cancelled) {
+          const imageUrl = await this.uploadImageFetch(result.uri);
+          this.props.onSend({ image: imageUrl });
+        }
+      }
+    } catch (error) {
+      console.log(error.message);
+    }
   };
 
+  //Allow user to take pictures
+  takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    try {
+      if (status === 'granted') {
+        let result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        }).catch(error => console.log(error));
+
+        if (!result.cancelled) {
+          const imageUrl = await this.uploadImageFetch(result.uri);
+          this.props.onSend({ image: imageUrl });
+        }
+      }
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
+  //Get user location using GPS
+  getLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        let result = await Location.getCurrentPositionAsync({});
+
+        if (result) {
+          this.props.onSend({
+            location: {
+              longitude: result.coords.longitude,
+              latitude: result.coords.latitude,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
+  //Upload images to Firebase
   uploadImageFetch = async uri => {
     const blob = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -28,69 +81,20 @@ class CustomAction extends React.Component {
       xhr.open('GET', uri, true);
       xhr.send(null);
     });
-    // create storage reference
+
     const imageNameBefore = uri.split('/');
     const imageName = imageNameBefore[imageNameBefore.length - 1];
-    const storage = getStorage();
-    const storageRef = ref(storage, `images/${imageName}`);
-    await uploadBytes(storageRef, blob).then(snapshot => {
-      console.log('Uploaded a blob or file!');
-    });
-    const downloadUrl = await getDownloadURL(storageRef);
-    return downloadUrl;
+
+    const ref = firebase.storage().ref().child(`images/${imageName}`);
+
+    const snapshot = await ref.put(blob);
+
+    blob.close();
+
+    return await snapshot.ref.getDownloadURL();
   };
 
-  pickImage = async () => {
-    const { status } = await Permissions.askAsync(Permissions.MEDIA_LIBRARY);
-
-    if (status === 'granted') {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'Images',
-      }).catch(error => console.log(error));
-
-      if (!result.cancelled) {
-        const imageUrl = await this.uploadImageFetch(result.uri);
-        this.props.onSend({ image: imageUrl });
-      }
-    }
-  };
-
-  takeImage = async () => {
-    const { status } = await Permissions.askAsync(
-      Permissions.MEDIA_LIBRARY,
-      Permissions.CAMERA
-    );
-
-    if (status === 'granted') {
-      let result = await ImagePicker.launchCameraAsync({
-        mediaTypes: 'All',
-      }).catch(error => console.log(error));
-
-      if (!result.cancelled) {
-        const imageUrl = await this.uploadImageFetch(result.uri);
-        this.props.onSend({ image: imageUrl });
-      }
-    }
-  };
-
-  getLocation = async () => {
-    const { status } = await Permissions.askAsync(
-      Permissions.LOCATION_FOREGROUND
-    );
-    if (status === 'granted') {
-      let result = await Location.getCurrentPositionAsync({});
-
-      if (result) {
-        this.props.onSend({
-          location: {
-            latitude: result.coords.latitude,
-            longitude: result.coords.longitude,
-          },
-        });
-      }
-    }
-  };
-
+  //Handle communication features
   onActionPress = () => {
     const options = [
       'Choose From Library',
@@ -108,10 +112,10 @@ class CustomAction extends React.Component {
         switch (buttonIndex) {
           case 0:
             console.log('user wants to pick an image');
-            return this.pickImage();
+            return this.imagePicker();
           case 1:
             console.log('user wants to take a photo');
-            return this.takeImage();
+            return this.takePhoto();
           case 2:
             console.log('user wants to get their location');
             return this.getLocation();
@@ -125,6 +129,7 @@ class CustomAction extends React.Component {
       <TouchableOpacity
         accessible={true}
         accessibilityLabel="More options"
+        accessibilityHint="Send an image or your geolocation."
         style={[styles.container]}
         onPress={this.onActionPress}
       >
@@ -158,19 +163,8 @@ const styles = StyleSheet.create({
   },
 });
 
-CustomAction.contextTypes = {
+CustomActions.contextTypes = {
   actionSheet: PropTypes.func,
 };
 
-CustomAction.defaultProps = {
-  onSend: () => {},
-  options: {},
-  renderIcon: null,
-  containerStyle: {},
-  wrapperStyle: {},
-  iconTextStyle: {},
-};
-
-const CustomActions = connectActionSheet(CustomAction);
-
-export default CustomActions;
+CustomActions = connectActionSheet(CustomActions);
